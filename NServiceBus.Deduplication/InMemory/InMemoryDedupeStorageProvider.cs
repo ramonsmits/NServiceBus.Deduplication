@@ -8,20 +8,34 @@ class InMemoryDedupeStorageProvider : DedupeStorageProvider
 {
     static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(5);
     static readonly TimeSpan DedupeWindowDuration = TimeSpan.FromSeconds(60 * 10);
-    ConcurrentDictionary<string, DedupeClaimImp> Items = new ConcurrentDictionary<string, DedupeClaimImp>();
+    readonly ConcurrentDictionary<string, DedupeClaimImp> Items = new ConcurrentDictionary<string, DedupeClaimImp>();
 
     public Task<DedupeClaim> GetLease(string messageId)
     {
         var now = DateTime.UtcNow;
-        var claim = Items.GetOrAdd(messageId, x => new DedupeClaimImp
+        var entity = new DedupeClaimImp
         {
             MessageId = messageId,
             LeaseExpiration = now.Add(LeaseDuration),
             Revision = 1,
             Timestamp = now
-        });
+        };
 
-        return Task.FromResult<DedupeClaim>(claim);
+        if (Items.TryAdd(messageId, entity)) return Task.FromResult<DedupeClaim>(entity);
+
+        var previous = entity = Items[messageId];
+
+        if (entity.IsProcessed) return Task.FromResult<DedupeClaim>(entity);
+
+        var isLeaseExpired = entity.LeaseExpiration < now;
+
+        if (!isLeaseExpired) throw new Exception($"Lease not expired for {messageId}.");
+
+        entity.LeaseExpiration = now + LeaseDuration;
+
+        if (!Items.TryUpdate(messageId, entity, previous)) throw new Exception($"Lease for {messageId} taken by other incoming message.");
+
+        return Task.FromResult<DedupeClaim>(entity);
     }
 
     public Task CompleteLease(DedupeClaim instance)
@@ -31,7 +45,7 @@ class InMemoryDedupeStorageProvider : DedupeStorageProvider
         claim.IsProcessed = true;
         claim.Revision++;
         claim.Timestamp = DateTime.UtcNow;
-        if (!Items.TryUpdate(claim.MessageId, claim, previous)) throw new Exception("No Complete Jose!");
+        if (!Items.TryUpdate(claim.MessageId, claim, previous)) throw new Exception("Lease taken by other incoming message. Possible cause is processing duration exceeds lease duration. Possibly more than once execution of message id.");
         return Task.FromResult(0);
     }
 
@@ -41,22 +55,17 @@ class InMemoryDedupeStorageProvider : DedupeStorageProvider
         var claim = previous;
         claim.Revision++;
         claim.LeaseExpiration = DateTime.MinValue;
-        if (!Items.TryUpdate(claim.MessageId, claim, previous)) throw new Exception("No Release Jose!");
+        if (!Items.TryUpdate(claim.MessageId, claim, previous)) throw new Exception($"Lease for {claim.MessageId} taken by other incoming message, possible more than once execution of message.");
+
         return Task.FromResult(0);
     }
 
     public Task Cleanup(CancellationToken cancellationToken)
     {
-        Console.WriteLine("Starting cleanup...");
         var expiredThresshold = DateTime.UtcNow - DedupeWindowDuration;
         var expiredKeys = Items.Where(x => x.Value.Timestamp < expiredThresshold).Select(x => x.Key);
         DedupeClaimImp value;
-        foreach (var key in expiredKeys)
-        {
-            Console.WriteLine($"Removing {key}");
-            Items.TryRemove(key, out value);
-        }
-        Console.WriteLine("Finished cleanup...");
+        foreach (var key in expiredKeys) Items.TryRemove(key, out value);
         return Task.FromResult(0);
     }
 
