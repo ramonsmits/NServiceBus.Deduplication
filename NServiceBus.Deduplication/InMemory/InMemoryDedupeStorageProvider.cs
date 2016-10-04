@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 class InMemoryDedupeStorageProvider : DedupeStorageProvider
 {
-    static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(5);
+    static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(30);
     static readonly TimeSpan DedupeWindowDuration = TimeSpan.FromSeconds(60 * 10);
     readonly ConcurrentDictionary<string, DedupeClaimImp> Items = new ConcurrentDictionary<string, DedupeClaimImp>();
 
