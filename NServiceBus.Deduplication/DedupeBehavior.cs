@@ -31,12 +31,12 @@ class DeduplicationBehavior : Behavior<IIncomingPhysicalMessageContext>//ITransp
             await next();
             var now = DateTime.UtcNow;
             if (now > claim.LeaseExpiration) Log.WarnFormat("Dedupe lease already expired ({0:N}s) for message {1}!", now - claim.LeaseExpiration, id);
-            Log.InfoFormat("Completing dedupe lease for message {0}.", id);
+            Log.DebugFormat("Completing dedupe lease for message {0}.", id);
             await Storage.CompleteLease(claim);
         }
         catch
         {
-            Log.InfoFormat("Releasing dedupe lease for message {0}.", id);
+            Log.DebugFormat("Releasing dedupe lease for message {0}.", id);
             await Storage.ReleaseLease(claim);
             throw;
         }
