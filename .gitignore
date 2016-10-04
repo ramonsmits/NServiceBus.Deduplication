@@ -1,6 +1,8 @@
-/.vs/NServiceBus.Deduplication/v14/*.suo
+.vs
+*.suo
 bin
 obj
 packages
 *.user
 .vs
+.connectionstrings.config
