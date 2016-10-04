@@ -30,9 +30,9 @@ class DedupeFeature : Feature
 
     class CleanupTask : FeatureStartupTask
     {
-        readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
+        readonly TimeSpan Interval;
         readonly ILog Log = LogManager.GetLogger(nameof(CleanupTask));
-        readonly IntervalScheduler Scheduler = new IntervalScheduler(TimeSpan.FromSeconds(10));
+        readonly IntervalScheduler Scheduler;
 
         CancellationTokenSource cancellationTokenSource;
         CancellationToken cancellationToken;
@@ -41,6 +41,8 @@ class DedupeFeature : Feature
 
         public CleanupTask(Func<CancellationToken, Task> task)
         {
+            Interval = TimeSpan.FromSeconds(60);
+            Scheduler = new IntervalScheduler(Interval);
             Cleanup = task;
         }
 
