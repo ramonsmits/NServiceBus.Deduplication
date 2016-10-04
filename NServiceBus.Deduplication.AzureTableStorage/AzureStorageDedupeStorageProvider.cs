@@ -84,6 +84,8 @@ class AzureStorageDedupeStorageProvider : DedupeStorageProvider
         var result = await Table.ExecuteAsync(retrieve);
         entity = (DedupeEntity)result.Result;
 
+        if (entity.IsProcessed) return entity;
+
         var isLeaseExpired = entity.LeaseExpiration < now;
 
         if (!isLeaseExpired) throw new Exception($"Lease not expired for {messageId}.");
