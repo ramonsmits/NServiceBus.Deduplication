@@ -10,10 +10,10 @@ using NServiceBus.Logging;
 
 class AzureStorageDedupeStorageProvider : DedupeStorageProvider
 {
-    readonly TimeSpan PurgeDuration = TimeSpan.FromSeconds(30);
+    readonly TimeSpan TimeToKeepDeduplicationData = TimeSpan.Parse("7.00:00:00");
     const string TableNameFormat = "dedupe";//"_{0}";
     static readonly ILog Log = LogManager.GetLogger(nameof(AzureStorageDedupeStorageProvider));
-    static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(30);
+    static readonly TimeSpan LeaseDuration = TimeSpan.Parse("00:00:30");
     readonly CloudTable Table;
 
     public AzureStorageDedupeStorageProvider()
@@ -110,7 +110,7 @@ class AzureStorageDedupeStorageProvider : DedupeStorageProvider
     {
         var start = DateTime.UtcNow;
         Log.DebugFormat("Going to purge expired rows");
-        var purgeTimestamp = start - PurgeDuration;
+        var purgeTimestamp = start - TimeToKeepDeduplicationData;
 
         var query = new TableQuery();
 
